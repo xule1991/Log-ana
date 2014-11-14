@@ -10,8 +10,18 @@ package com.xule.model;
 public class LogInfo {
     private String num;
     private String squareInfo;
+    private String logLevel;
     private String classType;
     private String description;
+
+    public String getLogLevel() {
+        return logLevel;
+    }
+
+    public void setLogLevel(String logLevel) {
+        this.logLevel = logLevel;
+    }
+
 
     public String getNum() {
         return num;

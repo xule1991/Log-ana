@@ -1,6 +1,7 @@
 package com.xule.tools;
 
 
+import com.xule.model.LogInfo;
 import org.junit.Test;
 
 /**
@@ -11,11 +12,10 @@ import org.junit.Test;
  * To change this template use File | Settings | File Templates.
  */
 public class RegexUtilTest {
-    //"([0-9]+)\\s+(\\[.+\\])\\s+(\\w)\\s+(.+)}"
     @Test
     public void assembleLogInfoTest() {
-         String line = "371542 [http-80-4] DEBUG com.ea.eadp.cp.infra.rest.client.RESTClient";
+         String line = "16066251 [main] INFO  org.springframework.web.context.support.XmlWebApplicationContext - Closing WebApplicationContext for namespace 'lockbox-servlet': startup date [Thu Nov 13 20:24:37 GMT 2014]; parent: Root WebApplicationContext";
+        LogInfo logInfo = RegexUtil.assembleLogInfo(line);
 
-        RegexUtil.assembleLogInfo(line);
     }
 }

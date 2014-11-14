@@ -63,6 +63,25 @@ public class MyBufferedReaderTest {
         }
     }
 
+    /**
+     * Confirm that the LF is ignored
+     */
+    @Test
+    public void display() {
+        try {
+            int num = 0;
+            String line = reader.readLine(true);
+            while (line != null) {
+                num ++;
+                line = reader.readLine(true);
+                System.out.println(num);
+                System.out.println(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+    }
+
     @After
     public void finishProcess() {
         try {

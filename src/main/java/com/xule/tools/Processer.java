@@ -1,11 +1,10 @@
 package com.xule.tools;
 
+import com.xule.model.LogInfo;
 import com.xule.reader.MyBufferedReader;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,9 +23,10 @@ public class Processer {
     private InputStream fis = null;
     private InputStreamReader ir = null;
     private MyBufferedReader reader = null;
+    private Set<String> classTypes = null;
+    private Set<String> description = null;
 
     //Single log line
-    private List<String> logLine = new ArrayList<String>();
     public Processer(String fileName) {
         this.fileName = fileName;
         initProcesser();
@@ -38,23 +38,23 @@ public class Processer {
      */
     public void process(){
         readProcess();
-        buildLineInfo();
         finalizeProcesser();
     }
 
-    private void buildLineInfo() {
-        Iterator<String> iterator = logLine.iterator();
-        String line = null;
-        while (iterator.hasNext()) {
-            line = iterator.next();
-        }
+    private void buildLineInfo(String line) {
+        LogInfo logInfo = RegexUtil.assembleLogInfo(line);
+        if (logInfo != null)
+        classTypes.add(logInfo.getClassType());
+        if (logInfo != null)
+         description.add(logInfo.getDescription());
+
     }
 
     private void readProcess() {
         try {
             String singleLog = reader.readLine(true);
             while(singleLog != null) {
-                logLine.add(singleLog);
+                buildLineInfo(singleLog);
                 singleLog = reader.readLine(true);
             }
         } catch (IOException e) {
@@ -72,6 +72,8 @@ public class Processer {
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Can not get the InputStreamReader");
         }
+        classTypes = new HashSet<String>();
+        description = new HashSet<String>();
     }
 
     private void finalizeProcesser() {
@@ -83,5 +85,17 @@ public class Processer {
         }
     }
 
+    public void showClassTypes() {
+        Iterator<String> iterator = classTypes.iterator();
+        while(iterator.hasNext()) {
+            System.out.println(iterator.next());
+        }
+    }
 
+    public void showDescription() {
+        Iterator<String> iterator = description.iterator();
+        while(iterator.hasNext()) {
+            System.out.println(iterator.next());
+        }
+    }
 }
