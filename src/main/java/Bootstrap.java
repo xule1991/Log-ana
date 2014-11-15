@@ -1,6 +1,4 @@
-import com.xule.tools.Processer;
-
-import java.io.*;
+import com.xule.utils.SingleLogSeparateProcesser;
 
 /**
  * Created with IntelliJ IDEA.
@@ -11,9 +9,7 @@ import java.io.*;
  */
 public class Bootstrap {
     public static void main(String []args) {
-        Processer processer = new Processer("C:\\Users\\lxu\\IdeaProjects\\local\\log-ana\\target\\hydra.log");
-        processer.process();
-        //processer.showClassTypes();
-        processer.showDescription();
+        SingleLogSeparateProcesser singleLogSeparateProcesser = new SingleLogSeparateProcesser("D:\\EA\\Log-ana-master\\src\\main\\resources\\hydra.log");
+        singleLogSeparateProcesser.process();
     }
 }
