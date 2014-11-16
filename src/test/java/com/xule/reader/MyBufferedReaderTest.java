@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 
 import static org.junit.Assert.assertTrue;
 
+
 /**
  * Created with IntelliJ IDEA.
  * User: lxu

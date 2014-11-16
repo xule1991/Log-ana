@@ -1,6 +1,7 @@
 package com.xule.utils;
 
-import com.xule.model.LogInfo;
+import com.xule.mapper.AccessLogMapper;
+import com.xule.model.AccessLogInfo;
 
 import java.io.*;
 import java.util.*;
@@ -19,22 +20,17 @@ import java.util.regex.Pattern;
  */
 public class SingleLogSeparateProcesser {
     private static Logger logger = Logger.getLogger(SingleLogSeparateProcesser.class.getName());
-    private static Set<String> excludedClasses = null;
     private String fileName;
     private BufferedReader reader = null;
     private BufferedWriter writer = null;
-    private Set<String> singleLog = null;
-    private Set<String> classTypes = null;
+    private BufferedWriter errorLogWriter = null;
+    private Set<String> uniqueFirstLine = null;
+    private Set<String> uniquelog = null;
+    private Set<String> uniqueUri = null;
 
-    private static String majorString = "^([0-9]+)\\s+(\\[.+\\])\\s+(\\w+)\\s+([\\w\\.]+)\\s+-\\s+([\\s\\S]*?)$";
-    private static Pattern majorPattern = Pattern.compile(majorString);
-    private List<LogInfo> logInfos ;
+    private static String accessLogPatternStr = "^(.+)\\s+(\\d{2,3}\\.\\d{2,3}\\.\\d{2,3}\\.\\d{2,3})\\s+(GET|POST)\\s+(.+)\\s(HTTP/\\d.\\d\\s\\d{3})\\s+(\\d+ms)\\s(.+)$";
+    private static Pattern accessLogPattern = Pattern.compile(accessLogPatternStr);
 
-    static {
-        excludedClasses = new HashSet<String>();
-        excludedClasses.add("session: org.apache.catalina.session.StandardSessionFacade");
-        excludedClasses.add("org.springframework.beans.factory.support.DefaultListableBeanFactory");
-    }
 
     public SingleLogSeparateProcesser(String fileName) {
         this.fileName = fileName;
@@ -43,60 +39,51 @@ public class SingleLogSeparateProcesser {
 
     private void initProcesser() {
         reader = FileUtils.createReader(fileName);
-        writer = FileUtils.createWriter("errorLine.html");
-        try {
-            writer.write("<html>");
-            writer.write("<body>");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        singleLog = new HashSet<String>();
-        classTypes = new HashSet<String>();
-        logInfos = new ArrayList<LogInfo>();
+        writer = FileUtils.createWriter("output\\analizedFile.txt");
+        errorLogWriter = FileUtils.createWriter("output\\errorLog.txt");
+        uniqueFirstLine = new HashSet<String>();
+        uniquelog = new HashSet<String>();
+        uniqueUri = new HashSet<String>();
     }
 
     public void process() {
-        //First time go through the file to separate it into single logs and store the logs into a list for further analyze
-        extractSingleLogs();
-        //showDescription();
-        //showGroupDescription();
-        showDescriptionsOfUniqueClasses();
+        extractUniqueLogs();
+        writeDownLogs();
         finalizeProcesser();
     }
 
-    private void showGroupDescription() {
-
-    }
-
-    private void showDescription() {
-        Iterator<String> iterator = singleLog.iterator();
-        while (iterator.hasNext()) {
+    private void writeDownLogs() {
+        boolean firstLine = true;
+        for (String uri : uniqueUri) {
             try {
-                writer.write(iterator.next());
-                writer.write("\n\r");
-                writer.write("\n\r");
+                if (!firstLine)
+                    writer.write("\r\n");
+                firstLine = false;
+                writer.write(uri + "\r\n");
+                for (String log : uniquelog) {
+                    if (log.contains(uri))
+                        writer.write(log + "\r\n");
+                }
             } catch (IOException e) {
-                e.printStackTrace();
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             }
         }
     }
 
-    private void extractSingleLogs() {
-        Matcher majorMatcher = null;
+
+    private void extractUniqueLogs() {
+        Matcher accessLogMatcher;
         try {
-            String singleLog = "";
             String line = reader.readLine();
-            majorMatcher = majorPattern.matcher(line);
-            if(isMajorLine(majorMatcher))
-                singleLog = line;
             while (line != null) {
-                majorMatcher = majorPattern.matcher(line);
-                if (isMajorLine(majorMatcher) && !singleLog.equals("")) {
-                    dealWithSingleLog(singleLog);
-                    this.singleLog.add(singleLog);
-                    singleLog = line;
+                accessLogMatcher = accessLogPattern.matcher(line);
+                if(isLogLine(accessLogMatcher)){
+                    //line is a single log with the specified pattern
+                    AccessLogInfo loginfo = assembleLogInfo(accessLogMatcher, new AccessLogMapper());
+                    if(isFirstLineOfTheRequestUnique(loginfo.getFirstLineOfRequest()))
+                        uniquelog.add(line);
                 } else {
-                    singleLog = singleLog + "\n" + line;
+                    errorLogWriter.write(line + "\r\n");
                 }
                 line = reader.readLine();
             }
@@ -105,104 +92,60 @@ public class SingleLogSeparateProcesser {
         }
     }
 
-    /**
-     * Deal with a single log
-     * @param singleLog
-     */
-    private void dealWithSingleLog(String singleLog) {
-        Matcher singleLogMatcher = majorPattern.matcher(singleLog);
-        if (singleLogMatcher.find()) {
-            createLogInfo(singleLogMatcher);
-            findUniqueClassTypes(singleLogMatcher);
-        }
+    private boolean isFirstLineOfTheRequestUnique(String firstLineOfRequest) {
+        String compressedFirstLine = compressFirstLine(firstLineOfRequest);
+        if (uniqueFirstLine.contains(compressedFirstLine))
+            return false;
+        uniqueFirstLine.add(compressedFirstLine);
+        return true;
     }
 
-    private void showDescriptionsOfUniqueClasses() {
-        Iterator<String> iterator = classTypes.iterator();
-        while (iterator.hasNext()) {
-            try {
-                String className = iterator.next();
-                writer.write("<font color=\"red\">ClassName:</font>\n\r");
-                writer.write("<font color=\"red\">" + className + "</font>" + "\n\r");
-                processDescription(className);
-                writer.write("\n\r");
-                writer.write("\n\r");
-            } catch (IOException e) {
-                e.printStackTrace();
+    private String compressFirstLine(String firstLineOfRequest) {
+        //separate uri and params
+        if (firstLineOfRequest.contains("?")) {
+            String uriStr = firstLineOfRequest.substring(0, firstLineOfRequest.indexOf("?"));
+            uniqueUri.add(uriStr);
+            String paramsString = firstLineOfRequest.substring(firstLineOfRequest.indexOf("?") + 1);
+            //separate params
+            List<String> params = separateParams(paramsString);
+            StringBuilder compressedString = new StringBuilder();
+            compressedString.append(uriStr);
+            for (String paramName : params) {
+                compressedString.append(paramName);
             }
+            return compressedString.toString();
         }
-
+        uniqueUri.add(firstLineOfRequest);
+        return firstLineOfRequest;
     }
 
-    private void processDescription(String className) {
-        Iterator<LogInfo> iterator = logInfos.iterator();
-        List<String> uniqueDescriptions = new ArrayList<String>();
-        List<String> specificDescription = new ArrayList<String>();
-        specificDescription.add("session: org.apache.catalina.session.StandardSessionFacade");
-        while (iterator.hasNext()) {
-            LogInfo current = iterator.next();
-            if (current.getClassType().equals(className)
-                    //&& !specificDescription.contains(className)
-                    //&& isUniqueDescription(current.getDescription(), uniqueDescriptions)) {
-                    ) {
-                try {
-                    writer.write(current.getDescription() + "\n\r\n\r");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+    private List<String> separateParams(String paramsString) {
+        //for params like v=201411152348
+        if (!paramsString.contains("&")) {
+            List paramsName = new ArrayList();
+            paramsName.add(paramsString.substring(0, paramsString.indexOf("=")));
+            return paramsName;
+        } else {
+            //for params like gameId=sims4&code=AC1cDwqRzoGCBewfFPcGcs&country=US&locale=en_US&currency=USD&cartname=vltqaxfyth&cip=159.153.4.52
+            List<String> params = Arrays.asList(paramsString.split("&"));
+            List paramNames = new ArrayList();
+            for (String param : params) {
+                paramNames.add(param.substring(0, param.indexOf("=")));
             }
+           return paramNames;
         }
     }
 
-    private boolean isUniqueDescription(String description, List<String> uniqueDescriptions) {
-        //remove all variables pattern like[a=b],then compare.
-        boolean isUnique = false;
-        String descriptionCopy = description.replaceAll("\\[.*\\]", "");;
-        if (!uniqueDescriptions.contains(descriptionCopy)) {
-            uniqueDescriptions.add(descriptionCopy);
-            isUnique = true;
-        }
-        //if the first 50 char is the same,we thought it is from the same logger
-        if (descriptionCopy.length() >= 30 && !uniqueDescriptions.contains(descriptionCopy.substring(0, 30))) {
-            uniqueDescriptions.add(descriptionCopy.substring(0, 30));
-            isUnique = true;
-        }
-        return isUnique;
+    private AccessLogInfo assembleLogInfo(Matcher accessLogMatcher, AccessLogMapper accessLogMapper) {
+        return accessLogMapper.map(accessLogMatcher);
+
     }
 
-    private void writeDescription() {
-    }
-
-    private void findUniqueClassTypes(Matcher singleLogMatcher) {
-        Iterator<String> iterator = excludedClasses.iterator();
-        while (iterator.hasNext()) {
-            if (iterator.next().equals(singleLogMatcher.group(4)))
-                return;
-        }
-        classTypes.add(singleLogMatcher.group(4));
-    }
-
-    private void createLogInfo(Matcher singleLogMatcher) {
-        LogInfo logInfo = new LogInfo();
-        logInfo.setNum(singleLogMatcher.group(1));
-        logInfo.setSquareInfo(singleLogMatcher.group(2));
-        logInfo.setLogLevel(singleLogMatcher.group(3).trim());
-        logInfo.setClassType(singleLogMatcher.group(4).trim());
-        logInfo.setDescription(singleLogMatcher.group(5).trim());
-        logInfos.add(logInfo);
-    }
-
-    private boolean isMajorLine(Matcher majorMatcher) {
+    private boolean isLogLine(Matcher majorMatcher) {
         return majorMatcher.find();
     }
 
     private void finalizeProcesser() {
-        try {
-            writer.write("</body>");
-            writer.write("</html>");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         try {
             if (reader != null)
                 reader.close();

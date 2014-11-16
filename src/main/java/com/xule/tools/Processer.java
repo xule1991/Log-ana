@@ -1,6 +1,6 @@
 package com.xule.tools;
 
-import com.xule.model.LogInfo;
+import com.xule.model.AccessLogInfo;
 import com.xule.reader.MyBufferedReader;
 
 import java.io.*;
@@ -42,11 +42,11 @@ public class Processer {
     }
 
     private void buildLineInfo(String line) {
-        LogInfo logInfo = RegexUtil.assembleLogInfo(line);
-        if (logInfo != null)
-        classTypes.add(logInfo.getClassType());
-        if (logInfo != null)
-         description.add(logInfo.getDescription());
+ /*       AccessLogInfo accessLogInfo = RegexUtil.assembleLogInfo(line);
+        if (accessLogInfo != null)
+        classTypes.add(accessLogInfo.getClassType());
+        if (accessLogInfo != null)
+         description.add(accessLogInfo.getDescription());*/
 
     }
 

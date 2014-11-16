@@ -24,6 +24,9 @@ public class FileUtils {
         BufferedWriter writer = null;
         try {
             File file = new File(fileName);
+            if (file == null) {
+                file.createNewFile();
+            }
             FileOutputStream fos = new FileOutputStream(file);
             OutputStreamWriter ir = new OutputStreamWriter(fos);
             writer = new BufferedWriter(ir);

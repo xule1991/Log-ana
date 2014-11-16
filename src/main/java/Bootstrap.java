@@ -9,7 +9,7 @@ import com.xule.utils.SingleLogSeparateProcesser;
  */
 public class Bootstrap {
     public static void main(String []args) {
-        SingleLogSeparateProcesser singleLogSeparateProcesser = new SingleLogSeparateProcesser("D:\\EA\\Log-ana-master\\src\\main\\resources\\hydra.log");
+        SingleLogSeparateProcesser singleLogSeparateProcesser = new SingleLogSeparateProcesser("inputfiles\\http_access.log.2014-11-15-16");
         singleLogSeparateProcesser.process();
     }
 }
