@@ -2,6 +2,7 @@ package com.xule.utils;
 
 import com.xule.mapper.AccessLogMapper;
 import com.xule.model.AccessLogInfo;
+import com.xule.writer.AccessLogInfoExcelWriter;
 
 import java.io.*;
 import java.util.*;
@@ -20,6 +21,7 @@ import java.util.regex.Pattern;
  */
 public class SingleLogSeparateProcesser {
     private static Logger logger = Logger.getLogger(SingleLogSeparateProcesser.class.getName());
+    private Map<String, String> context;
     private String fileName;
     private BufferedReader reader = null;
     private BufferedWriter writer = null;
@@ -27,23 +29,27 @@ public class SingleLogSeparateProcesser {
     private Set<String> uniqueFirstLine = null;
     private Set<String> uniquelog = null;
     private Set<String> uniqueUri = null;
+    private Set<AccessLogInfo> uniqueAccessLogInfo= null;
 
-    private static String accessLogPatternStr = "^(.+)\\s+(\\d{2,3}\\.\\d{2,3}\\.\\d{2,3}\\.\\d{2,3})\\s+(GET|POST)\\s+(.+)\\s(HTTP/\\d.\\d\\s\\d{3})\\s+(\\d+ms)\\s(.+)$";
-    private static Pattern accessLogPattern = Pattern.compile(accessLogPatternStr);
+    private  String accessLogPatternStr;
+    private  Pattern accessLogPattern;
 
 
-    public SingleLogSeparateProcesser(String fileName) {
-        this.fileName = fileName;
+    public SingleLogSeparateProcesser(Map<String, String> context) {
+        this.context = context;
         initProcesser();
     }
 
     private void initProcesser() {
-        reader = FileUtils.createReader(fileName);
-        writer = FileUtils.createWriter("output\\analizedFile.txt");
-        errorLogWriter = FileUtils.createWriter("output\\errorLog.txt");
+        reader = FileUtils.createReader(context.get("logFileName"));
+        accessLogPatternStr = context.get("logPattern");
+        accessLogPattern = Pattern.compile(accessLogPatternStr);
+        writer = FileUtils.createWriter(context.get("outputFile"));
+        errorLogWriter = FileUtils.createWriter(context.get("errorFile"));
         uniqueFirstLine = new HashSet<String>();
         uniquelog = new HashSet<String>();
         uniqueUri = new HashSet<String>();
+        uniqueAccessLogInfo = new TreeSet<AccessLogInfo>();
     }
 
     public void process() {
@@ -68,6 +74,9 @@ public class SingleLogSeparateProcesser {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             }
         }
+        //export to excel
+        AccessLogInfoExcelWriter accessLogInfoExcelWriter = new AccessLogInfoExcelWriter();
+        accessLogInfoExcelWriter.writeDownAccessLogInfo(uniqueAccessLogInfo);
     }
 
 
@@ -80,9 +89,12 @@ public class SingleLogSeparateProcesser {
                 if(isLogLine(accessLogMatcher)){
                     //line is a single log with the specified pattern
                     AccessLogInfo loginfo = assembleLogInfo(accessLogMatcher, new AccessLogMapper());
-                    if(isFirstLineOfTheRequestUnique(loginfo.getFirstLineOfRequest()))
+                    if(isFirstLineOfTheRequestUnique(loginfo.getFirstLineOfRequest())) {
                         uniquelog.add(line);
+                        uniqueAccessLogInfo.add(loginfo);
+                    }
                 } else {
+                    //if there are some line do not match the pattern we need to record it
                     errorLogWriter.write(line + "\r\n");
                 }
                 line = reader.readLine();

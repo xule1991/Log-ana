@@ -1,4 +1,11 @@
+import com.xule.utils.PropertiesUtil;
 import com.xule.utils.SingleLogSeparateProcesser;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 
 /**
  * Created with IntelliJ IDEA.
@@ -9,7 +16,20 @@ import com.xule.utils.SingleLogSeparateProcesser;
  */
 public class Bootstrap {
     public static void main(String []args) {
-        SingleLogSeparateProcesser singleLogSeparateProcesser = new SingleLogSeparateProcesser("inputfiles\\http_access.log.2014-11-15-16");
+        String propFileName = "config.properties";
+        Properties prop = new PropertiesUtil().createProperties(propFileName);
+        Map<String, String> context = createContext(prop);
+        SingleLogSeparateProcesser singleLogSeparateProcesser = new SingleLogSeparateProcesser(context);
         singleLogSeparateProcesser.process();
     }
+
+    private static Map<String,String> createContext(Properties prop) {
+        Map<String, String> context = new HashMap<String, String>();
+        for (Object key : prop.keySet()) {
+            Object value = prop.get(key);
+            context.put((String) key, (String) value);
+        }
+        return context;
+    }
+
 }

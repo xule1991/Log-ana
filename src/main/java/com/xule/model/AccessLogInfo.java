@@ -7,7 +7,7 @@ package com.xule.model;
  * Time: 1:00 PM
  * To change this template use File | Settings | File Templates.
  */
-public class AccessLogInfo{
+public class AccessLogInfo implements Comparable{
     private String time;
     private String ip;
     private String httpMethod;
@@ -70,5 +70,10 @@ public class AccessLogInfo{
 
     public void setAdditionalInfo(AdditionalInfo additionalInfo) {
         this.additionalInfo = additionalInfo;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+        return this.firtLineOfRequest.compareTo(((AccessLogInfo)o).firtLineOfRequest);
     }
 }
