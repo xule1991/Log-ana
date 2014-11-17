@@ -2,6 +2,7 @@ package com.xule.utils;
 
 import com.xule.mapper.AccessLogMapper;
 import com.xule.model.AccessLogInfo;
+import com.xule.reader.LogDirectory;
 import com.xule.writer.AccessLogInfoExcelWriter;
 
 import java.io.*;
@@ -22,7 +23,6 @@ import java.util.regex.Pattern;
 public class SingleLogSeparateProcesser {
     private static Logger logger = Logger.getLogger(SingleLogSeparateProcesser.class.getName());
     private Map<String, String> context;
-    private String fileName;
     private BufferedReader reader = null;
     private BufferedWriter writer = null;
     private BufferedWriter errorLogWriter = null;
@@ -34,6 +34,8 @@ public class SingleLogSeparateProcesser {
     private  String accessLogPatternStr;
     private  Pattern accessLogPattern;
 
+    private LogDirectory logDerectory;
+
 
     public SingleLogSeparateProcesser(Map<String, String> context) {
         this.context = context;
@@ -41,15 +43,16 @@ public class SingleLogSeparateProcesser {
     }
 
     private void initProcesser() {
-        reader = FileUtils.createReader(context.get("logFileName"));
         accessLogPatternStr = context.get("logPattern");
         accessLogPattern = Pattern.compile(accessLogPatternStr);
         writer = FileUtils.createWriter(context.get("outputFile"));
         errorLogWriter = FileUtils.createWriter(context.get("errorFile"));
+        logDerectory = new LogDirectory(context.get("path"));
         uniqueFirstLine = new HashSet<String>();
         uniquelog = new HashSet<String>();
         uniqueUri = new HashSet<String>();
         uniqueAccessLogInfo = new TreeSet<AccessLogInfo>();
+
     }
 
     public void process() {
@@ -76,11 +79,16 @@ public class SingleLogSeparateProcesser {
         }
         //export to excel
         AccessLogInfoExcelWriter accessLogInfoExcelWriter = new AccessLogInfoExcelWriter();
-        accessLogInfoExcelWriter.writeDownAccessLogInfo(uniqueAccessLogInfo);
+        accessLogInfoExcelWriter.writeDownAccessLogInfo(uniqueAccessLogInfo, context);
     }
 
 
     private void extractUniqueLogs() {
+        while ((reader = logDerectory.getReader())!= null)
+        extractUniqueLogFromOneFile();
+    }
+
+    private void extractUniqueLogFromOneFile() {
         Matcher accessLogMatcher;
         try {
             String line = reader.readLine();
@@ -89,7 +97,7 @@ public class SingleLogSeparateProcesser {
                 if(isLogLine(accessLogMatcher)){
                     //line is a single log with the specified pattern
                     AccessLogInfo loginfo = assembleLogInfo(accessLogMatcher, new AccessLogMapper());
-                    if(isFirstLineOfTheRequestUnique(loginfo.getFirstLineOfRequest())) {
+                    if(isFirstLineOfTheRequestUniqueAndMeaningful(loginfo.getFirstLineOfRequest())) {
                         uniquelog.add(line);
                         uniqueAccessLogInfo.add(loginfo);
                     }
@@ -104,7 +112,10 @@ public class SingleLogSeparateProcesser {
         }
     }
 
-    private boolean isFirstLineOfTheRequestUnique(String firstLineOfRequest) {
+    private boolean isFirstLineOfTheRequestUniqueAndMeaningful(String firstLineOfRequest) {
+        //.png request is useless
+        if (firstLineOfRequest.contains(".png"))
+            return false;
         String compressedFirstLine = compressFirstLine(firstLineOfRequest);
         if (uniqueFirstLine.contains(compressedFirstLine))
             return false;
@@ -133,7 +144,7 @@ public class SingleLogSeparateProcesser {
 
     private List<String> separateParams(String paramsString) {
         //for params like v=201411152348
-        if (!paramsString.contains("&")) {
+        if (!paramsString.contains("&") && paramsString.contains("=")) {
             List paramsName = new ArrayList();
             paramsName.add(paramsString.substring(0, paramsString.indexOf("=")));
             return paramsName;
@@ -142,6 +153,7 @@ public class SingleLogSeparateProcesser {
             List<String> params = Arrays.asList(paramsString.split("&"));
             List paramNames = new ArrayList();
             for (String param : params) {
+                if (paramNames.contains("="))
                 paramNames.add(param.substring(0, param.indexOf("=")));
             }
            return paramNames;
@@ -158,6 +170,7 @@ public class SingleLogSeparateProcesser {
     }
 
     private void finalizeProcesser() {
+        logDerectory.destroyReaders();
         try {
             if (reader != null)
                 reader.close();

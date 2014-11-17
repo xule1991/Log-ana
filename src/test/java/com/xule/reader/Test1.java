@@ -63,4 +63,10 @@ public class Test1 {
         System.out.println(matcher.find());
        System.out.println(matcher.group(5));
     }
+
+    @Test
+    public void test3() {
+        LogDirectory logDirectory = new LogDirectory("log-ana\\inputfiles\\");
+        while (logDirectory.getReader()!= null);
+    }
 }

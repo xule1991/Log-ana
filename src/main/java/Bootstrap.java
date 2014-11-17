@@ -17,19 +17,8 @@ import java.util.Properties;
 public class Bootstrap {
     public static void main(String []args) {
         String propFileName = "config.properties";
-        Properties prop = new PropertiesUtil().createProperties(propFileName);
-        Map<String, String> context = createContext(prop);
+        Map<String, String> context = new PropertiesUtil().createProperties(propFileName);
         SingleLogSeparateProcesser singleLogSeparateProcesser = new SingleLogSeparateProcesser(context);
         singleLogSeparateProcesser.process();
     }
-
-    private static Map<String,String> createContext(Properties prop) {
-        Map<String, String> context = new HashMap<String, String>();
-        for (Object key : prop.keySet()) {
-            Object value = prop.get(key);
-            context.put((String) key, (String) value);
-        }
-        return context;
-    }
-
 }

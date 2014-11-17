@@ -6,11 +6,12 @@ import org.apache.poi.hssf.usermodel.*;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 public class AccessLogInfoExcelWriter {
 
-    public void writeDownAccessLogInfo(Set<AccessLogInfo> accessLogInfos) {
+    public void writeDownAccessLogInfo(Set<AccessLogInfo> accessLogInfos, Map<String, String> context) {
         HSSFWorkbook wb = new HSSFWorkbook();
         HSSFSheet sheet = wb.createSheet("new sheet");
         HSSFRow row = sheet.createRow((short)0);
@@ -35,7 +36,7 @@ public class AccessLogInfoExcelWriter {
         }
 
         try {
-            FileOutputStream fileOut = new FileOutputStream("Log-ana-master\\outputfiles\\AccessLogInfo.xls");
+            FileOutputStream fileOut = new FileOutputStream(context.get("outputExcel"));
             wb.write(fileOut);
             fileOut.close();
         } catch (IOException e) {
